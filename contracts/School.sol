@@ -8,6 +8,8 @@ contract School {
     address owner;
     address[] Operators;
     string[] Formations;
+    address factoryAddress;
+    string schoolName;
 
     struct Operator{
         bool authorized;
@@ -21,11 +23,13 @@ contract School {
     mapping (address=>Operator) setOperator;
     mapping (string=>mapping(string=>address[])) listStudentByFormationAndYear;
 
-     constructor () {
+     constructor (address _factoryAddress, string memory _schoolName) {
 
         owner = msg.sender;
         setOperator[owner].authorized = true;
         Operators.push(owner);
+        factoryAddress = _factoryAddress;
+        schoolName = _schoolName;
     }
 
     modifier onlyOwner() {
@@ -75,22 +79,25 @@ contract School {
         Operators.push(_operatorAddress);
     }
 
+    function changeFactoryAddress(address _newFactoryAddress) external onlyOperator {
+        factoryAddress = _newFactoryAddress;
+    }
+
     function addFormation(string calldata _newFormation) external onlyOperator{
         if (setFormation[_newFormation].exist == false) {
             setFormation[_newFormation].exist = true;
             Formations.push(_newFormation);
         } else {
             revert("This formation name is already taken !");
-        }
-        
+        }     
     }
 
-    function addStudent(string calldata _formation, string calldata _year_XXXX_to_XXXX_Format, address _studentAddress) external onlyOperator existingFormation(_formation){
+    function addStudent(string calldata _formation, string calldata _year_XXXX_to_XXXX_Format, address _studentAddress) external payable onlyOperator existingFormation(_formation){
         bool temp;
         for (uint256 i = 0; i < listStudentByFormationAndYear[_formation][_year_XXXX_to_XXXX_Format].length; i++) {
             if (listStudentByFormationAndYear[_formation][_year_XXXX_to_XXXX_Format][i] == _studentAddress) {
                 temp = true;
-            } 
+            }
         }
         if (temp == true) {
             revert("Student is already listed");
@@ -99,6 +106,11 @@ contract School {
         }
         
     }
-
-    // function with _salt, _baseURI and _extension linked to Factory.sol
+    // JSON diploma order must to be the exact same order of the student in student array of the year of formation
+    function deployDiploma(string calldata _formation, string calldata _year_XXXX_to_XXXX_Format, string calldata _baseURI, string calldata _extension) external onlyOperator existingFormation(_formation){
+        address temp = NFTFactory(factoryAddress).DeployYourNFT(schoolName, _formation, _year_XXXX_to_XXXX_Format, _baseURI, _extension, address(this));
+        for (uint256 i = 0; i < listStudentByFormationAndYear[_formation][_year_XXXX_to_XXXX_Format].length; i++) {
+            Promotion(temp).mint(listStudentByFormationAndYear[_formation][_year_XXXX_to_XXXX_Format][i]);
+        }
+    }
 }
